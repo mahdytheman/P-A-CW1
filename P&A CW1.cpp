@@ -8,18 +8,22 @@
 const int INITIAL_CAPACITY = 10;
 const double LOAD_FACTOR_THRESHOLD = 0.5;
 
+// Structure to represent a user with username, password, and pointer to next user
 struct User {
     std::string username;
     std::string password;
     User* next;
 };
 
+// Class to manage passwords
 class PasswordManager {
 private:
+    // Array of pointers to users, capacity, and size of the array
     User** users;
     int capacity;
     int size;
 
+    // Hash function to map a string key to an index
     int hash(const std::string& key, int attempt) {
         int sum = 0;
         for (char c : key) {
@@ -28,6 +32,7 @@ private:
         return (sum + attempt * secondaryHash(key)) % capacity;
     }
 
+    // Secondary hash function used within the primary hash function
     int secondaryHash(const std::string& key) {
         int prime = 7;
         int hash = 0;
@@ -37,6 +42,7 @@ private:
         return hash;
     }
 
+    // Function to encrypt a password
     std::string encrypt(const std::string& password) {
         std::string encryptedPassword = password;
         for (char& c : encryptedPassword) {
@@ -48,6 +54,7 @@ private:
         return encryptedPassword;
     }
 
+    // Function to decrypt an encrypted password
     std::string decrypt(const std::string& encryptedPassword) {
         std::string decryptedPassword = encryptedPassword;
         for (char& c : decryptedPassword) {
@@ -59,6 +66,7 @@ private:
         return decryptedPassword;
     }
 
+    // Function to rehash the users array when load factor exceeds threshold
     void rehash() {
         int newCapacity = capacity * 2;
         User** newUsers = new User*[newCapacity];
@@ -80,15 +88,18 @@ private:
         users = newUsers;
     }
 
+    // Function to calculate load factor of the hash table
     double calculateLoadFactor() {
         return static_cast<double>(size) / capacity;
     }
 
 public:
+    // Constructor to initialize capacity and size, and create users array
     PasswordManager() : capacity(INITIAL_CAPACITY), size(0) {
         users = new User*[capacity] { nullptr };
     }
 
+    // Destructor to deallocate memory used by users array
     ~PasswordManager() {
         for (int i = 0; i < capacity; ++i) {
             User* curr = users[i];
@@ -101,6 +112,7 @@ public:
         delete[] users;
     }
 
+    // Function to add a password for a given username
     void addPassword(const std::string& username, const std::string& password) {
         std::string encryptedPassword = encrypt(password);
         int index = hash(username, 0) % capacity;
@@ -119,6 +131,7 @@ public:
         userFile.close();
     }
 
+    // Function to generate a random password and add it for a given username
     void generateAndAddPassword(const std::string& username) {
         // Generate a random secure password
         const std::string symbols = "!@#$%^&*()_-+=<>?/[]{},.:;";
@@ -146,6 +159,7 @@ public:
         addPassword(username, randomPassword);
     }
 
+    // Function to retrieve saved passwords for a given username
     void retrievePasswords(const std::string& username) {
         int index = hash(username, 0) % capacity;
         std::cout << "Saved passwords for " << username << ":\n";
@@ -164,6 +178,7 @@ public:
         userFile.close();
     }
     
+    // Function to verify login credentials
     bool loginUser(const std::string& username, const std::string& password) {
         int index = hash(username, 0) % capacity;
         User* curr = users[index];
@@ -174,6 +189,28 @@ public:
             curr = curr->next;
         }
         return false;
+    }
+
+    // Function to delete a password for a given username and password
+    void deletePassword(const std::string& username, const std::string& passwordToDelete) {
+        int index = hash(username, 0) % capacity;
+        User* prev = nullptr;
+        User* curr = users[index];
+        while (curr != nullptr) {
+            if (curr->username == username && decrypt(curr->password) == passwordToDelete) {
+                if (prev != nullptr) {
+                    prev->next = curr->next;
+                } else {
+                    users[index] = curr->next;
+                }
+                delete curr;
+                size--;
+                return;
+            }
+            prev = curr;
+            curr = curr->next;
+        }
+        std::cout << "Password not found for deletion.\n";
     }
 };
 
@@ -212,11 +249,12 @@ int main() {
     std::string choice;
     while (true) {
         std::cout << "Choose an option:\n"
-                     "1. Enter new password\n"
-                     "2. Generate a password\n"
-                     "3. Retrieve saved passwords\n"
-                     "4. Logout\n"
-                     "Enter your choice: ";
+                    "1. Enter new password\n"
+                    "2. Generate a password\n"
+                    "3. Retrieve saved passwords\n"
+                    "4. Delete password\n" // Added option for deleting password
+                    "5. Logout\n"
+                    "Enter your choice: ";
         std::cin >> choice;
         if (choice == "1") {
             std::string newPassword;
@@ -229,7 +267,12 @@ int main() {
             std::cout << "Password generated and added successfully!\n";
         } else if (choice == "3") {
             manager.retrievePasswords(username);
-        } else if (choice == "4") {
+        } else if (choice == "4") { // Option for deleting password
+            std::string passwordToDelete;
+            std::cout << "Enter password to delete: ";
+            std::cin >> passwordToDelete;
+            manager.deletePassword(username, passwordToDelete);
+        } else if (choice == "5") {
             std::cout << "Logged out successfully.\n";
             break;
         } else {
@@ -239,4 +282,3 @@ int main() {
 
     return 0;
 }
-
